@@ -1,1 +1,3 @@
-# ia316---recommender-system
+# IA316 - Recommender system [in progress]
+
+
