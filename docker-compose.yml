@@ -6,7 +6,7 @@ services:
     container_name: flask_app
     restart: always
     build: ./flask_app
-    command: gunicorn app:app -w 4 -b :5000
+    command: gunicorn app:app -w 1 -b :5000
 
   nginx:
     container_name: nginx
