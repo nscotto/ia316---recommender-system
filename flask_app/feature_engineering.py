@@ -36,13 +36,13 @@ class FeatureGenerator(object):
         """
         res = []
         for state, action, reward in zip(self.state_history,
-                                        self.action_history,
-                                        self.rewards_history):
+                                         self.action_history,
+                                         self.rewards_history):
             for state_j in state: # iterates available items
                 if state_j[1] == action:
                     res.append((state_j, action, reward))
                 else:
-                    res.append((state_j, state_j[1], state_j[2]))
+                    res.append((state_j, state_j[1], 0))
         res = np.array(res).reshape((len(res), 3))
         mask_pos = np.where(res[:, 2] > 0, True, False)
 
