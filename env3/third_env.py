@@ -13,8 +13,7 @@ import pandas as pd
 import numpy as np
 
 import requests
-from collab_filtering import df_to_ratings, predict_ratings_bias_sub
-
+from implicit_feedback import Recommender
 
 
 #%%
@@ -29,8 +28,8 @@ def get_input(user_id):
     nb_users = data.pop('nb_users')
     nb_items = data.pop('nb_items')
     next_state = data.pop('next_state')
-    columns = ['state_history', 'action_history', 'reward_history']
-    data_array = [data.pop[c] for c in columns]
+    columns = ['state_history', 'action_history', 'rewards_history']
+    data_array = [np.array(data.pop(c)) for c in columns]
     """
     data_array = np.array([data.pop[c] for c in columns])
     df =  pd.DataFrame(data_array.T, columns=columns)
@@ -38,6 +37,7 @@ def get_input(user_id):
     return nb_users, nb_items, next_state, data_array
 
 #%%
+
 
 def predict_value(next_state, model=None):
     # input prediction model: score between 1 and 5
@@ -109,6 +109,17 @@ if __name__ == '__main__':
     inform('Requesting history...')
     nb_users, nb_items, next_state, data_array = get_input(ID)
     state_history, action_history, reward_history = data_array
+    inform('history retrieved')
+    inform('creating model')
+    recommender = Recommender()
+    inform('Fitting model...')
+    recommender.fit(state_history=state_history, 
+            reward_history=reward_history, 
+            action_history=action_history, 
+            n_users=nb_users, 
+            n_items=nb_items)
+    inform('Model fitted')
+    
 
 
 

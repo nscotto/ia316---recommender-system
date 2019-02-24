@@ -5,6 +5,14 @@ from keras.layers import Embedding, Flatten, Input, Dense, Dropout
 from keras.layers import Concatenate, Lambda
 from keras.regularizers import l2
 
+def _identity_loss(y_true, y_pred):
+    return tf.reduce_mean(y_pred)
+
+def _margin_comparator_loss(inputs, margin=1.):
+    positive_pair_sim, negative_pair_sim = inputs
+    return tf.maximum(negative_pair_sim - positive_pair_sim + margin, 0)
+
+
 
 class Recommender(object):
     def __init__(self, user_dim=32, item_dim=64, n_hidden=1, hidden_size=64, 
@@ -33,14 +41,14 @@ class Recommender(object):
             action = pos_action_data[i]
             user_ids.append(state[action][0])
             pos_items.append(state[action][1])
-            pos_metadata.append(state[action][2:])
+            pos_metadata.append(np.array(state[action][2:]))
             # Pick negative state
             k = action
             while k == action:
                 k = rng.randint(0, len(state))
             neg_items.append(state[k][1])
-            neg_metadata.append(state[k][2:])
-        return (user_ids, pos_items, pos_metadata, neg_items, neg_metadata)
+            neg_metadata.append(np.array(state[k][2:]))
+        return (np.array(x) for x in (user_ids, pos_items, pos_metadata, neg_items, neg_metadata))
 
 
     def _identity_loss(self, y_true, y_pred):
@@ -109,7 +117,8 @@ class Recommender(object):
         negative_similarity = interaction_layers(negative_embeddings_pair)
 
         # The triplet network model, only used for training
-        triplet_loss = Lambda(self._margin_comparator_loss, output_shape=(1,),
+        #triplet_loss = Lambda(self._margin_comparator_loss, output_shape=(1,),
+        triplet_loss = Lambda(_margin_comparator_loss, output_shape=(1,),
                 name='comparator_loss')(
                         [positive_similarity, negative_similarity])
 
@@ -130,27 +139,27 @@ class Recommender(object):
         """ Fit the model """
         deep_match_model, deep_triplet_model = self._build_models(n_users,
                 n_items, **self.hyper_parameters)
-        deep_triplet_model.compile(loss=self._identity_loss, optimizer='adam')
+        #deep_triplet_model.compile(loss=self._identity_loss, optimizer='adam')
+        deep_triplet_model.compile(loss=_identity_loss, optimizer='adam')
 
         pos_rewards = reward_history > 0
         pos_reward_history = reward_history[pos_rewards]
         pos_state_history  = state_history[pos_rewards]
         pos_action_history = action_history[pos_rewards]
-        fake_y = np.ones_like(pos_action_history)
+        fake_y = np.ones_like(pos_reward_history)
 
         for i in range(n_epochs):
             # Sample new negatives to build different triplets at each epoch
             #triplet_inputs = self._sample_triplets(pos_state_history,
-             user_ids, pos_items, pos_metadata, neg_items, neg_metadata = self._sample_triplets(pos_state_history,
-                     pos_action_history, random_seed=0)
-             triplet_inputs = [user_ids, pos_items, neg_items]
+            user_ids, pos_items, pos_metadata, neg_items, neg_metadata = self._sample_triplets(pos_state_history,
+                     pos_action_history, random_seed=i)
+            triplet_inputs = [user_ids, pos_items, neg_items]
 
             # Fit the model incrementally by doing a single pass over the
             # sampled triplets.
-            deep_triplet_model.fit(triplet_inputs, fake_y, shuffle=True,
-                    batch_size=64, epochs=1)
+            deep_triplet_model.fit(triplet_inputs, fake_y, shuffle=True, batch_size=64, epochs=1)
 
             # Monitor the convergence of the model
-            test_auc = average_roc_auc(deep_match_model, pos_data_train, pos_data_test)
-            print("Epoch %d/%d: test ROC AUC: %0.4f"
-                    % (i + 1, n_epochs, test_auc))
+            #test_auc = average_roc_auc(deep_match_model, pos_data_train, pos_data_test)
+            #print("Epoch %d/%d: test ROC AUC: %0.4f"
+            #        % (i + 1, n_epochs, test_auc))
