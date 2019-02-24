@@ -33,7 +33,6 @@ def main():
     next_u, next_i, next_var = feature_gen.next_user, feature_gen.next_item, \
         feature_gen.next_variables
 
-    # input_pred = [np.array([next_u]), np.array([next_i]), np.array([next_var])]
     input_pred = [np.array([x]) for x in [next_i, next_i, next_var]]
     pred = model.predict(input_pred)[0][0]
     mse, mae = 0, 0
@@ -59,7 +58,6 @@ def main():
         mae += abs(pred - true_rating)
         print('Iteration {}, SE={:.3f}'.format(i, (pred - true_rating)**2))
 
-        # input_pred = [np.array([next_u]), np.array([next_i]), np.array([next_var])]
         input_pred = [np.array([x]) for x in [next_i, next_i, next_var]]
         pred = model.predict(input_pred)[0][0]
 
