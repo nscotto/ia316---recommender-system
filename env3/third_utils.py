@@ -110,3 +110,4 @@ for i in range(n_epochs):
     test_auc = average_roc_auc(deep_match_model, pos_data_train, pos_data_test)
     print("Epoch %d/%d: test ROC AUC: %0.4f"
           % (i + 1, n_epochs, test_auc))
+
