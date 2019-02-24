@@ -48,7 +48,7 @@ class Recommender(object):
                 k = rng.randint(0, len(state))
             neg_items.append(state[k][1])
             neg_metadata.append(np.array(state[k][2:]))
-        return (np.array(x) for x in (user_ids, pos_items, pos_metadata, neg_items, neg_metadata))
+        return [np.array(x) for x in (user_ids, pos_items, neg_items)]
 
 
     def _identity_loss(self, y_true, y_pred):
@@ -151,9 +151,10 @@ class Recommender(object):
         for i in range(n_epochs):
             # Sample new negatives to build different triplets at each epoch
             #triplet_inputs = self._sample_triplets(pos_state_history,
-            user_ids, pos_items, pos_metadata, neg_items, neg_metadata = self._sample_triplets(pos_state_history,
+            #user_ids, pos_items, pos_metadata, neg_items, neg_metadata = self._sample_triplets(pos_state_history,
+            triplet_inputs = self._sample_triplets(pos_state_history,
                      pos_action_history, random_seed=i)
-            triplet_inputs = [user_ids, pos_items, neg_items]
+            #triplet_inputs = [user_ids, pos_items, neg_items]
 
             # Fit the model incrementally by doing a single pass over the
             # sampled triplets.
