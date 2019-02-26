@@ -33,8 +33,7 @@ def main():
     next_u, next_i, next_var = feature_gen.next_user, feature_gen.next_item, \
         feature_gen.next_variables
 
-    # input_pred = [np.array([next_u]), np.array([next_i]), np.array([next_var])]
-    input_pred = [np.array([x]) for x in [next_i, next_i, next_var]]
+    input_pred = [np.array([x]) for x in [next_u, next_i, next_var]]
     pred = model.predict(input_pred)[0][0]
     mse, mae = 0, 0
     i = 0
@@ -52,6 +51,9 @@ def main():
         data = req.json()
 
         true_rating = data['rating']
+        input_retrain = [np.array([x]) for x in [next_u, next_i, next_var]]
+        model.train(input_retrain, np.array([true_rating]))
+
         next_u, next_i, next_var = data['next_user'], data['next_item'], \
             data['next_variables']
 
@@ -59,8 +61,7 @@ def main():
         mae += abs(pred - true_rating)
         print('Iteration {}, SE={:.3f}'.format(i, (pred - true_rating)**2))
 
-        # input_pred = [np.array([next_u]), np.array([next_i]), np.array([next_var])]
-        input_pred = [np.array([x]) for x in [next_i, next_i, next_var]]
+        input_pred = [np.array([x]) for x in [next_u, next_i, next_var]]
         pred = model.predict(input_pred)[0][0]
 
     print('Done \n MSE={:.3f} \n MAE={:.3f}'.format(mse/i, mae/i))

@@ -6,7 +6,7 @@ import numpy as np
 class DeepFactorization(object):
     def __init__(self, embedding_size=64, n_user=64, n_item=32, vars=5,
                  batch_size=64, epochs=20, lr=0.01):
-        self.batch_size = 64
+        self.batch_size = batch_size
         self.epochs = epochs
         self.lr = lr
         # For each sample we input the integer identifiers
