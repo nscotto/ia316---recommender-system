@@ -7,13 +7,13 @@ puis installer docker-compose
 
 """
 
-
 import sys
+
 import numpy as np
 
 import requests
 
-from deep_implicit_feedback_recsys import *
+from deep_implicit_feedback_recsys2 import *
 
 #%%
 
@@ -69,7 +69,13 @@ if __name__ == '__main__':
     pos_reward_history = reward_history[pos_rewards]
     pos_state_history  = state_history[pos_rewards]
     pos_action_history = action_history[pos_rewards]
-    fake_y = np.ones_like(pos_reward_history)
+    
+    null_rewards = reward_history == 0
+    null_reward_history = reward_history[null_rewards]
+    null_state_history  = state_history[null_rewards]
+    null_action_history = action_history[null_rewards]
+    
+    fake_y = np.ones_like(reward_history)
 
     n_epochs = 15
     if len(sys.argv) > 1:
@@ -77,8 +83,12 @@ if __name__ == '__main__':
 
     for i in range(n_epochs):
         # Sample new negatives to build different triplets at each epoch
-        triplet_inputs = sample_triplets(pos_state_history, pos_action_history,
+        triplet = sample_triplets(pos_state_history, pos_action_history,
                                          random_seed=i)
+        null_triplet = sample_triplets_null_reward(null_state_history,
+                null_action_history, random_seed=i)
+        triplet_inputs = [np.concatenate((triplet[i], null_triplet[i])) 
+                for i in range(len(triplet))]
 
         # Fit the model incrementally by doing a single pass over the
         # sampled triplets.
@@ -90,7 +100,7 @@ if __name__ == '__main__':
     inform('Predicting...')
     next_user_id = [next_state[0][0] for _ in range(len(next_state))]
     next_items   = [next_state[i][1] for i in range(len(next_state))]
-    next_metadata = [next_state[i][2:] for i in range(len(next_state))]
+    next_metadata = [next_state[i][2:] + [1] for i in range(len(next_state))]
     inputs = [np.array(x) for x in (next_user_id, next_items, next_metadata)]
     pred = deep_match_model.predict(inputs)
     print(pred)

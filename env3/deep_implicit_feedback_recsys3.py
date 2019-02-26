@@ -27,13 +27,13 @@ def sample_triplets(pos_state_data, pos_action_data, random_seed=0):
         action = pos_action_data[i]
         user_ids.append(state[action][0])
         pos_items.append(state[action][1])
-        pos_metadata.append(np.array(state[action][2:]))
+        pos_metadata.append(np.array(state[action][2:] + [state[action][2]]))
         # Pick negative state
         k = action
         while k == action:
             k = rng.randint(0, len(state))
         neg_items.append(state[k][1])
-        neg_metadata.append(np.array(state[k][2:]))
+        neg_metadata.append(np.array(state[k][2:] + [0]))
     return [np.array(x) for x in (user_ids, pos_items, neg_items, pos_metadata, neg_metadata)]
 
 def sample_triplets_null_reward(state_data, action_data, random_seed=0):
@@ -51,13 +51,13 @@ def sample_triplets_null_reward(state_data, action_data, random_seed=0):
         action = action_data[i]
         user_ids.append(state[action][0])
         neg_items.append(state[action][1])
-        neg_metadata.append(np.array(state[action][2:]))
+        neg_metadata.append(np.array(state[action][2:] + [-state[action][2]]))
         # Pick negative state
         k = action
         while k == action:
             k = rng.randint(0, len(state))
         pos_items.append(state[k][1])
-        pos_metadata.append(np.array(state[k][2:]))
+        pos_metadata.append(np.array(state[k][2:] + [0]))
     return [np.array(x) for x in (user_ids, pos_items, neg_items, pos_metadata, neg_metadata)]
 
 
@@ -69,7 +69,7 @@ def make_interaction_mlp(input_dim, n_hidden=1, hidden_size=64,
         # Plug the output unit directly: this is a simple
         # linear regression model. Not dropout required.
         mlp.add(Dense(1, input_dim=input_dim,
-                      activation=None, kernel_regularizer=l2_reg))
+                      activation='relu', kernel_regularizer=l2_reg))
     else:
         mlp.add(Dense(hidden_size, input_dim=input_dim,
                       activation='relu', kernel_regularizer=l2_reg))
@@ -78,18 +78,18 @@ def make_interaction_mlp(input_dim, n_hidden=1, hidden_size=64,
             mlp.add(Dense(hidden_size, activation='relu',
                           W_regularizer=l2_reg))
             mlp.add(Dropout(dropout))
-        mlp.add(Dense(1, activation=None, kernel_regularizer=l2_reg))
+        mlp.add(Dense(1, activation='relu', kernel_regularizer=l2_reg))
     return mlp
 
 
-def build_models(n_users, n_items, user_dim=32, item_dim=64,
+def build_models(n_users, n_items, user_dim=32, item_dim=64, metadata_dim=7,
                  n_hidden=1, hidden_size=64, dropout=0, l2_reg=0):
     """Build models to train a deep triplet network"""
     user_input = Input((1,), name='user_input')
     positive_item_input = Input((1,), name='positive_item_input')
     negative_item_input = Input((1,), name='negative_item_input')
-    positive_metadata_input = Input((6,), name='positive_metadata_input')
-    negative_metadata_input = Input((6,), name='negative_metadata_input')
+    positive_metadata_input = Input((7,), name='positive_metadata_input')
+    negative_metadata_input = Input((7,), name='negative_metadata_input')
 
     l2_reg = None if l2_reg == 0 else l2(l2_reg)
     user_layer = Embedding(n_users, user_dim, input_length=1,
@@ -115,7 +115,7 @@ def build_models(n_users, n_items, user_dim=32, item_dim=64,
 
     # Instanciate the shared similarity architecture
     interaction_layers = make_interaction_mlp(
-        user_dim + item_dim + 6, n_hidden=n_hidden, hidden_size=hidden_size,
+        user_dim + item_dim + metadata_dim, n_hidden=n_hidden, hidden_size=hidden_size,
         dropout=dropout, l2_reg=l2_reg)
 
     positive_similarity = interaction_layers(positive_embeddings_pair)
