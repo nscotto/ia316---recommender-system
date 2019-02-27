@@ -4,6 +4,7 @@ from keras.models import Model, Sequential
 from keras.layers import Embedding, Flatten, Input, Dense, Dropout
 from keras.layers import Concatenate, Lambda
 from keras.regularizers import l2
+from user_based_recsys import UserBasedRecommender
 
 def identity_loss(y_true, y_pred):
     return tf.reduce_mean(y_pred)
@@ -468,3 +469,84 @@ class ImplicitRecommenderWithNull(object):
         pred = np.argmax(pred_score)
         return pred
 
+class ImplicitRecommenderUserBased(object):
+    def __init__(self, nb_users, nb_items, user_based_reco, user_dim=32, item_dim=64,
+            n_hidden=1, hidden_size=128, dropout=0.1, l2_reg=0):
+        self._hyper_parameters = dict(
+                user_dim=user_dim,
+                item_dim=item_dim,
+                n_hidden=n_hidden,
+                hidden_size=hidden_size,
+                dropout=dropout,
+                l2_reg=l2_reg
+                )
+        self._deep_match_model, self._deep_triplet_model = build_models(nb_users,
+                nb_items, metadata_dim=6, **self._hyper_parameters)
+        self._deep_triplet_model.compile(loss=identity_loss, optimizer='adam')
+        self.user_based_reco = user_based_reco
+
+    def __str__(self):
+        return 'ImplicitRecommenderUserBased'
+
+    def _sample_triplets(self, pos_state_data, pos_action_data, random_seed=0):
+        """ Triplet sampling
+        pos_state_data: the history of positive state
+        pos_action_data: the history of actions related to positive states
+        random_seed: random_seed generator
+
+        return: user_ids, pos_items, pos_metadata, neg_items, neg_metadata
+        """
+        rng = np.random.RandomState(random_seed)
+        user_ids, pos_items, pos_metadata, neg_items, neg_metadata = ([] for _ in range(5))
+        for i in range(len(pos_action_data)):
+            state  = pos_state_data[i]
+            action = pos_action_data[i]
+            user_ids.append(state[action][0])
+            pos_items.append(state[action][1])
+            pos_metadata.append(np.array(state[action][2:]))
+            # Pick negative state
+            k = action
+            while k == action:
+                k = rng.randint(0, len(state))
+            neg_items.append(state[k][1])
+            neg_metadata.append(np.array(state[k][2:]))
+        return [np.array(x) for x in (user_ids, pos_items, neg_items, pos_metadata, neg_metadata)]
+
+    def train(self, state_history, action_history, reward_history, n_epochs=15,
+            batch_size=64, verbose=1):
+        pos_rewards = reward_history > 0
+        pos_rewards_history = reward_history[pos_rewards]
+        pos_state_history  = state_history[pos_rewards]
+        pos_action_history = action_history[pos_rewards]
+        fake_y = np.ones_like(pos_rewards_history)
+
+        for i in range(n_epochs):
+            # Sample new negatives to build different triplets at each epoch
+            triplet_inputs = self._sample_triplets(pos_state_history, pos_action_history,
+                    random_seed=i)
+            # Fit the model incrementally by doing a single pass over the
+            # sampled triplets.
+            self._deep_triplet_model.fit(triplet_inputs, fake_y, shuffle=True,
+                    batch_size=batch_size, epochs=1, verbose=verbose)
+        return self
+
+    def predict(self, state):
+        user_id = [state[0][0] for _ in range(len(state))]
+        items   = [state[i][1] for i in range(len(state))]
+        metadata = [state[i][2:] for i in range(len(state))]
+
+        if user_id[0] not in self.user_based_reco._user_df['user_id']:
+            available_items = [n[1] for n in state]
+            filtered_bought_df = self.user_based_reco._df_bought \
+                [self.user_based_reco._df_bought.item_id.isin(available_items)]
+            filtered_user_df = self.user_based_reco._user_df \
+                [self.user_based_reco._user_df.user_id.isin(
+                    filtered_bought_df.user_id)]
+            user_metadata = state[0][3:5]
+            similar_user = self.user_based_reco._similar_user(filtered_user_df, user_metadata)
+            user_id = [similar_user for _ in range(len(state))]
+
+        inputs = [np.array(x) for x in (user_id, items, metadata)]
+        pred_score = self._deep_match_model.predict(inputs)
+        pred = np.argmax(pred_score)
+        return pred
