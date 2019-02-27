@@ -48,7 +48,7 @@ def eval_loop_recommender(RecommenderClass, n_epochs=15, n_loop=10, n_pred=1000,
         else a non-null integer equals to the number of predictions before
         actualizing the model (1 is for streaming)
     """
-    rewards, rates = []
+    rewards, rates = [], []
     for _ in range(n_loop):
         reward, rate = eval_recommender(RecommenderClass, n_epochs=n_epochs,
                 n_pred=n_pred, online_batch_size=online_batch_size,
@@ -84,13 +84,16 @@ def eval_recommender(RecommenderClass, n_epochs=15, n_pred=1000,
         state_history, action_history, reward_history = ([] for _ in range(3))
         for _ in range(n_pred):
             if len(state_history) == online_batch_size:  # retrain
-                recommender.train(state_history, action_history, reward_history)
+                state_history, action_history, reward_history = (np.array(x) for x in 
+                        (state_history, action_history, reward_history))
+                recommender.train(state_history, action_history, reward_history,
+                        verbose=verbose)
                 state_history, action_history, reward_history = ([] for _ in range(3))
             pred = recommender.predict(next_state)
-            reward, next_state = send_pred(ID, pred)
             state_history.append(next_state)
-            reward_history.append(reward)
             action_history.append(pred)
+            reward, next_state = send_pred(ID, pred)
+            reward_history.append(reward)
             rewards += reward
             pos_rewards += reward > 0
     mean = rewards / n_pred

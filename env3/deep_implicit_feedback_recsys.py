@@ -106,6 +106,9 @@ class ImplicitRecommenderSimple(object):
                 nb_items, metadata_dim=6, **self._hyper_parameters)
         self._deep_triplet_model.compile(loss=identity_loss, optimizer='adam')
 
+    def __str__(self):
+        return 'ImplicitRecommenderSimple' 
+
     def _sample_triplets(self, pos_state_data, pos_action_data, random_seed=0):
         """ Triplet sampling
         pos_state_data: the history of positive state
@@ -172,6 +175,9 @@ class ImplicitRecommenderWithNull_no_indicator(object):
         self._deep_match_model, self._deep_triplet_model = build_models(nb_users,
                 nb_items, metadata_dim=6, **self._hyper_parameters)
         self._deep_triplet_model.compile(loss=identity_loss, optimizer='adam')
+
+    def __str__(self):
+        return 'ImplicitRecommenderWithNull_no_indicator' 
 
     def _sample_triplets(self, pos_state_data, pos_action_data, random_seed=0):
         """ Triplet sampling
@@ -270,6 +276,9 @@ class ImplicitRecommenderWithNull_binary_indicator(object):
                 nb_items, **self._hyper_parameters)
         self._deep_triplet_model.compile(loss=identity_loss, optimizer='adam')
 
+    def __str__(self):
+        return 'ImplicitRecommenderWithNull_binary_indicator' 
+
     def _sample_triplets(self, pos_state_data, pos_action_data, random_seed=0):
         """ Triplet sampling
         pos_state_data: the history of positive state
@@ -285,13 +294,13 @@ class ImplicitRecommenderWithNull_binary_indicator(object):
             action = pos_action_data[i]
             user_ids.append(state[action][0])
             pos_items.append(state[action][1])
-            pos_metadata.append(np.array(state[action][2:] + [0]))
+            pos_metadata.append(np.concatenate((state[action][2:], [0])))
             # Pick negative state
             k = action
             while k == action:
                 k = rng.randint(0, len(state))
             neg_items.append(state[k][1])
-            neg_metadata.append(np.array(state[k][2:] + [0]))
+            neg_metadata.append(np.concatenate((state[k][2:], [0])))
         return [np.array(x) for x in (user_ids, pos_items, neg_items, pos_metadata, neg_metadata)]
 
     def _sample_triplets_null_reward(self, state_data, action_data, random_seed=0):
@@ -309,13 +318,13 @@ class ImplicitRecommenderWithNull_binary_indicator(object):
             action = action_data[i]
             user_ids.append(state[action][0])
             neg_items.append(state[action][1])
-            neg_metadata.append(np.array(state[action][2:] + [1]))
+            neg_metadata.append(np.concatenate((state[action][2:], [1])))
             # Pick negative state
             k = action
             while k == action:
                 k = rng.randint(0, len(state))
             pos_items.append(state[k][1])
-            pos_metadata.append(np.array(state[k][2:] + [1]))
+            pos_metadata.append(np.concatenate((state[k][2:], [1])))
         return [np.array(x) for x in (user_ids, pos_items, neg_items, pos_metadata, neg_metadata)]
 
     def train(self, state_history, action_history, reward_history, n_epochs=15,
@@ -368,6 +377,9 @@ class ImplicitRecommenderWithNull(object):
                 nb_items, **self._hyper_parameters)
         self._deep_triplet_model.compile(loss=identity_loss, optimizer='adam')
 
+    def __str__(self):
+        return 'ImplicitRecommenderWithNull' 
+
     def _sample_triplets(self, pos_state_data, pos_action_data, random_seed=0):
         """ Triplet sampling
         pos_state_data: the history of positive state
@@ -383,13 +395,13 @@ class ImplicitRecommenderWithNull(object):
             action = pos_action_data[i]
             user_ids.append(state[action][0])
             pos_items.append(state[action][1])
-            pos_metadata.append(np.array(state[action][2:] + [state[action][2]]))
+            pos_metadata.append(np.concatenate((state[action][2:], [state[action][2]])))
             # Pick negative state
             k = action
             while k == action:
                 k = rng.randint(0, len(state))
             neg_items.append(state[k][1])
-            neg_metadata.append(np.array(state[k][2:] + [0]))
+            neg_metadata.append(np.concatenate((state[k][2:], [0])))
         return [np.array(x) for x in (user_ids, pos_items, neg_items, pos_metadata, neg_metadata)]
 
     def _sample_triplets_null_reward(self, state_data, action_data, random_seed=0):
@@ -407,13 +419,13 @@ class ImplicitRecommenderWithNull(object):
             action = action_data[i]
             user_ids.append(state[action][0])
             neg_items.append(state[action][1])
-            neg_metadata.append(np.array(state[action][2:] + [-state[action][2]]))
+            neg_metadata.append(np.concatenate((state[action][2:], [-state[action][2]])))
             # Pick negative state
             k = action
             while k == action:
                 k = rng.randint(0, len(state))
             pos_items.append(state[k][1])
-            pos_metadata.append(np.array(state[k][2:] + [0]))
+            pos_metadata.append(np.concatenate((state[k][2:], [0])))
         return [np.array(x) for x in (user_ids, pos_items, neg_items, pos_metadata, neg_metadata)]
 
     def train(self, state_history, action_history, reward_history, n_epochs=15,
@@ -425,16 +437,22 @@ class ImplicitRecommenderWithNull(object):
         null_state_history  = state_history[null_rewards]
         null_action_history = action_history[null_rewards]
         fake_y = np.ones_like(reward_history)
-
         for i in range(n_epochs):
             # Sample new negatives to build different triplets at each epoch
-            triplet = self._sample_triplets(pos_state_history, pos_action_history,
-                    random_seed=i)
-            null_triplet = self._sample_triplets_null_reward(null_state_history,
-                    null_action_history, random_seed=i)
-            triplet_inputs = [np.concatenate((triplet[i], null_triplet[i]))
-                    for i in range(len(triplet))]
-
+            triplet_inputs = None
+            if len(pos_state_history) > 0 and len(null_state_history) > 0:
+                triplet = self._sample_triplets(pos_state_history, pos_action_history,
+                        random_seed=i)
+                null_triplet = self._sample_triplets_null_reward(null_state_history,
+                        null_action_history, random_seed=i)
+                triplet_inputs = [np.concatenate((triplet[i], null_triplet[i]))
+                    for i in range(5)]
+            elif len(pos_state_history) > 0:
+                triplet_inputs = self._sample_triplets(pos_state_history, pos_action_history,
+                        random_seed=i)
+            elif len(null_state_history) > 0:
+                triplet_inputs = self._sample_triplets_null_reward(null_state_history,
+                        null_action_history, random_seed=i)
             # Fit the model incrementally by doing a single pass over the
             # sampled triplets.
             self._deep_triplet_model.fit(triplet_inputs, fake_y, shuffle=True,
