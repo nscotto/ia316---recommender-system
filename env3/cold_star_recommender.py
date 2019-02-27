@@ -2,12 +2,13 @@ from user_based_recsys import UserBasedRecommender
 
 from deep_implicit_feedback_recsys import *
 
-class ColdStartImplicitRecommeder(object):
+class ColdStartImplicitRecommender(object):
     def __init__(self, nb_users, nb_items, state_history, action_history, reward_history,
+            ImplicitRecommender=ImplicitRecommenderSimple,
             online_batch_size=1, n_epochs=15, batch_size=64, verbose=1):
         self._user_based_reco = UserBasedRecommender(state_history, action_history,
                 reward_history)
-        self._implicit_reco   = ImplicitRecommenderSimple(nb_users, nb_items)
+        self._implicit_reco   = ImplicitRecommender(nb_users, nb_items)
         self._implicit_reco.train(state_history, action_history, reward_history,
                 n_epochs=n_epochs, batch_size=batch_size, verbose=verbose)
 

@@ -2,6 +2,8 @@ import numpy as np
 
 import requests
 
+from cold_star_recommender import *
+
 
 def get_input(user_id='VI2X71V0287S9F9B7SCU'):
     adress = 'http://35.180.178.243'
@@ -147,7 +149,7 @@ def eval_ImplicitRecommender(RecommenderClass, n_epochs=15, n_pred=1000,
     return mean, rate
 
 
-def eval_loop_ColdStartImplicitRecommender(RecommenderClass, n_epochs=15, n_loop=10, n_pred=1000,
+def eval_loop_ColdStartImplicitRecommender(ImplicitRecommenderClass, n_epochs=15, n_loop=10, n_pred=1000,
         online_batch_size=None, verbose=0, ID='VI2X71V0287S9F9B7SCU'):
     """ Evaluate a recommender erformance 
     RecommenderClass: Class of a recommender
@@ -160,13 +162,13 @@ def eval_loop_ColdStartImplicitRecommender(RecommenderClass, n_epochs=15, n_loop
     """
     rewards, rates = [], []
     for _ in range(n_loop):
-        reward, rate = eval_ColdStartImplicitRecommender(RecommenderClass, n_epochs=n_epochs,
+        reward, rate = eval_ColdStartImplicitRecommender(ImplicitRecommenderClass, n_epochs=n_epochs,
                 n_pred=n_pred, verbose=verbose, ID=ID)
         rewards.append(reward)
         rates.append(rate)
     return rewards, rates
 
-def eval_ColdStartImplicitRecommender(RecommenderClass, n_epochs=15, n_pred=1000,
+def eval_ColdStartImplicitRecommender(ImplicitRecommenderClass, n_epochs=15, n_pred=1000,
         verbose=0, ID='VI2X71V0287S9F9B7SCU'):
     """ Evaluate a recommender erformance 
     RecommenderClass: Class of a recommender
@@ -179,8 +181,8 @@ def eval_ColdStartImplicitRecommender(RecommenderClass, n_epochs=15, n_pred=1000
 
     nb_users, nb_items, next_state, data_array = get_input(ID)
     state_history, action_history, reward_history = data_array
-    recommender = RecommenderClass(nb_users, nb_items, state_history, action_history,
-            reward_history, n_epochs=n_epochs, verbose=verbose)
+    recommender = ColdStartImplicitRecommender(nb_users, nb_items, state_history, action_history,
+            reward_history, ImplicitRecommender=ImplicitRecommenderClass, n_epochs=n_epochs, verbose=verbose)
     rewards, pos_rewards = 0, 0
     for _ in range(n_pred):
         pred = recommender.predict(next_state)
@@ -189,7 +191,7 @@ def eval_ColdStartImplicitRecommender(RecommenderClass, n_epochs=15, n_pred=1000
         rewards += reward
         if reward > 0:
             pos_rewards += 1
-            recommender.actualize(next_state_bckp)
+            recommender.actualize(next_state_bckp, pred, reward)
     mean = rewards / n_pred
     rate = pos_rewards / n_pred
     return mean, rate

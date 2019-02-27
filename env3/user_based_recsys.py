@@ -56,9 +56,11 @@ class UserBasedRecommender(object):
 
     def actualize(self, state, action, reward):
         if reward > 0:
-            df = pd.DataFrame(state[action], columns=self._columns_names)
+            df = pd.DataFrame([state[action]], columns=self._columns_names)
             self._df_bought = self._df_bought.append(df, ignore_index=True, sort=False)
-            if not df.user_id.iloc[0].isin(self._user_df):
+            user_id = df.user_id.iloc[0]
+            if not self.has_seen_user(user_id):
+                # add user and its metadata to user df
                 # normalize meta data
                 norm = linalg.norm(df[['meta_0', 'meta_1']].values, axis=1)
                 df['meta_0'] = df.meta_0.values / norm
