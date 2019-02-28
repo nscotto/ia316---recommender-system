@@ -69,4 +69,5 @@ class UserBasedRecommender(object):
         return self
 
     def has_seen_user(self, user_id):
-        return (self._user_df.user_id == user_id).sum() > 0
+        return user_id in self._user_df.user_id
+
