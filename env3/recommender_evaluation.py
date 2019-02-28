@@ -151,7 +151,9 @@ def eval_ImplicitRecommender(RecommenderClass, n_epochs=15, n_pred=1000,
     return mean, rate
 
 
-def eval_loop_ColdStartImplicitRecommender(ColdStartRecommenderClass, ImplicitRecommenderClass, n_epochs=15, n_loop=10, 
+def eval_loop_ColdStartImplicitRecommender(ColdStartRecommenderClass, ImplicitRecommenderClass,
+        n_epochs=15, n_loop=10, 
+        user_dim=32, item_dim=64,
         n_pred=1000, n_hidden=1, hidden_size=128, dropout=0.1, l2_reg=0,
         online_batch_size=0, verbose=0, ID='VI2X71V0287S9F9B7SCU'):
     """ Evaluate a recommender erformance 
@@ -166,14 +168,16 @@ def eval_loop_ColdStartImplicitRecommender(ColdStartRecommenderClass, ImplicitRe
     res = []
     for _ in range(n_loop):
         r = eval_ColdStartImplicitRecommender(ColdStartRecommenderClass, ImplicitRecommenderClass, n_epochs=n_epochs,
-                n_pred=n_pred, n_hidden=n_hidden, hidden_size=hidden_size,
+                n_pred=n_pred, n_hidden=n_hidden, 
+                user_dim=user_dim, item_dim=item_dim, hidden_size=hidden_size,
                 dropout=dropout, l2_reg=l2_reg, online_batch_size=online_batch_size,
                 verbose=verbose, ID=ID)
         res.append(list(r))
     return pd.DataFrame(res, columns=['max_price', 'mean_price',
         'average_reward', 'good_reco_ratio'])
 
-def eval_ColdStartImplicitRecommender(ColdStartRecommenderClass, ImplicitRecommenderClass, n_epochs=15, n_pred=1000,
+def eval_ColdStartImplicitRecommender(ColdStartRecommenderClass, ImplicitRecommenderClass, 
+        n_epochs=15, n_pred=1000, user_dim=32, item_dim=64,
         n_hidden=1, hidden_size=128, dropout=0.1, l2_reg=0, online_batch_size=0,
         verbose=0, ID='VI2X71V0287S9F9B7SCU'):
     """ Evaluate a recommender erformance 
@@ -193,6 +197,7 @@ def eval_ColdStartImplicitRecommender(ColdStartRecommenderClass, ImplicitRecomme
     recommender = ColdStartRecommenderClass(nb_users, nb_items, state_history,
             action_history, reward_history,
             ImplicitRecommender=ImplicitRecommenderClass,
+            user_dim=user_dim, item_dim=item_dim,
             n_hidden=n_hidden, hidden_size=hidden_size, dropout=dropout, l2_reg=l2_reg,
             n_epochs=n_epochs, online_batch_size=online_batch_size, verbose=verbose)
     rewards, pos_rewards = 0, 0

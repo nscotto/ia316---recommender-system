@@ -6,6 +6,7 @@ class ColdStartImplicitRecommender(object):
 
     def __init__(self, nb_users, nb_items, state_history, action_history, reward_history,
             ImplicitRecommender=ImplicitRecommenderSimple,
+            user_dim=32, item_dim=64,
             n_hidden=1, hidden_size=128, dropout=0.1, l2_reg=0,
             n_epochs=15, batch_size=64, online_batch_size=0, verbose=1):
 
@@ -19,7 +20,8 @@ class ColdStartImplicitRecommender(object):
         # Create and train models
         self._user_based_reco = UserBasedRecommender(state_history, action_history,
                 reward_history)
-        self._implicit_reco   = ImplicitRecommender(nb_users, nb_items, n_hidden=n_hidden,
+        self._implicit_reco   = ImplicitRecommender(nb_users, nb_items, 
+                user_dim=user_dim, item_dim=item_dim, n_hidden=n_hidden,
                 hidden_size=hidden_size, dropout=dropout, l2_reg=l2_reg)
         self._implicit_reco.train(state_history, action_history, reward_history,
             n_epochs=n_epochs, batch_size=batch_size, verbose=verbose)
